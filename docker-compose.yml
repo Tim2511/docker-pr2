@@ -1,0 +1,61 @@
+# Стек ПР 2: Go-приложение + PostgreSQL.
+# Пароли берутся из файла .env рядом с этим файлом (он в .gitignore).
+# Поле version не пишем: в Compose v2 оно устарело и игнорируется.
+
+services:
+  app:
+    # Собираем образ из backend/Dockerfile и сразу даём ему имя с версией.
+    # Версия вместо latest: всегда понятно, что именно запущено.
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: app-backend:1.0.0
+    container_name: app
+    ports:
+      - "8080:8080"                 # наружу открыт только порт приложения
+    environment:
+      HTTP_PORT: "8080"
+      STATIC_DIR: /app/static
+      DB_HOST: db                   # имя сервиса = DNS-имя внутри сети Compose
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:?задайте DB_USER в .env}
+      DB_PASSWORD: ${DB_PASSWORD:?задайте DB_PASSWORD в .env}
+      DB_NAME: ${DB_NAME:?задайте DB_NAME в .env}
+    volumes:
+      - ./frontend:/app/static:ro   # статика с хоста, только для чтения
+    depends_on:
+      db:
+        condition: service_healthy  # ждём не просто старта БД, а её готовности
+    restart: unless-stopped
+    networks:
+      - app_net
+
+  db:
+    image: postgres:16-alpine       # конкретная версия, а не latest
+    container_name: app-db
+    environment:
+      POSTGRES_USER: ${DB_USER:?задайте DB_USER в .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?задайте DB_PASSWORD в .env}
+      POSTGRES_DB: ${DB_NAME:?задайте DB_NAME в .env}
+    # ports нет специально: база доступна только из сети app_net
+    healthcheck:
+      # pg_isready завершается успешно, когда postgres принимает подключения.
+      # $$ — экранирование: переменную подставит shell внутри контейнера, а не Compose.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - db_data:/var/lib/postgresql/data        # данные переживают пересоздание контейнера
+      - ./init:/docker-entrypoint-initdb.d:ro   # SQL-скрипты первого запуска
+    restart: unless-stopped
+    networks:
+      - app_net
+
+volumes:
+  db_data:
+
+networks:
+  app_net:
+    driver: bridge

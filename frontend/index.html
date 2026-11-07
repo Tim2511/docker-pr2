@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Записи из PostgreSQL</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main>
+    <h1>Записи из PostgreSQL</h1>
+    <p class="hint">Страницу отдаёт Go-сервер, список приходит из <code>/api/items</code>.</p>
+    <button id="refresh" type="button">Обновить список</button>
+    <p id="status" role="status"></p>
+    <ul id="items"></ul>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
